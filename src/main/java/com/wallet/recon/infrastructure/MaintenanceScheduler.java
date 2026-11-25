@@ -28,8 +28,8 @@ class MaintenanceScheduler {
     @Scheduled(cron = "${app.maintenance.reconcile-cron:0 0 3 * * *}")
     void reconcile() {
         var report = reconcileWalletsUseCase.execute();
-        if (report.mismatches().isEmpty()) {
-            log.info("Reconciliation OK: {} wallets match the ledger", report.walletsChecked());
+        if (report.clean()) {
+            log.info("Reconciliation OK: wallets match the ledger and the ledger is balanced");
         } else {
             log.error("Reconciliation found {} mismatch(es): {}",
                     report.mismatches().size(), report.mismatches());

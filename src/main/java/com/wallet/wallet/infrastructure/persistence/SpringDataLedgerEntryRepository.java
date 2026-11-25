@@ -16,4 +16,18 @@ interface SpringDataLedgerEntryRepository extends JpaRepository<LedgerEntryJpaEn
 
     @Query("SELECT COALESCE(SUM(e.amountMinor), 0) FROM LedgerEntryJpaEntity e WHERE e.account = :account")
     long sumByAccount(@Param("account") String account);
+
+    @Query("SELECT w.id, w.balanceMinor, COALESCE(SUM(e.amountMinor), 0)"
+            + " FROM WalletJpaEntity w LEFT JOIN LedgerEntryJpaEntity e"
+            + " ON e.account = CONCAT('WALLET:', CAST(w.id AS String))"
+            + " GROUP BY w.id, w.balanceMinor"
+            + " HAVING w.balanceMinor <> COALESCE(SUM(e.amountMinor), 0)")
+    List<Object[]> findWalletBalanceDrift();
+
+    @Query("SELECT COALESCE(SUM(e.amountMinor), 0) FROM LedgerEntryJpaEntity e")
+    long sumAllEntries();
+
+    @Query("SELECT e.journalId FROM LedgerEntryJpaEntity e"
+            + " GROUP BY e.journalId HAVING SUM(e.amountMinor) <> 0")
+    List<String> findUnbalancedJournalIds();
 }

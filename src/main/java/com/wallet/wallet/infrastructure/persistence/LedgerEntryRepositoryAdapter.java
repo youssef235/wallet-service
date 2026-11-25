@@ -35,6 +35,23 @@ class LedgerEntryRepositoryAdapter implements LedgerEntryRepository {
     }
 
     @Override
+    public List<WalletBalanceDrift> findWalletBalanceDrift() {
+        return springData.findWalletBalanceDrift().stream()
+                .map(row -> new WalletBalanceDrift((Long) row[0], (Long) row[1], (Long) row[2]))
+                .toList();
+    }
+
+    @Override
+    public long sumAllEntries() {
+        return springData.sumAllEntries();
+    }
+
+    @Override
+    public List<String> findUnbalancedJournalIds() {
+        return springData.findUnbalancedJournalIds();
+    }
+
+    @Override
     public long sumForWallet(Long walletId) {
         return springData.sumByAccount(LedgerAccount.ofWallet(walletId).value());
     }

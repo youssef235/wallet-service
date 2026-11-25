@@ -10,6 +10,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class SpringTransactionRunner implements TransactionRunner {
 
     @Override
+    @Transactional(readOnly = true)
+    public <T> T inReadOnlyTransaction(Supplier<T> work) {
+        return work.get();
+    }
+
+    @Override
     @Transactional(propagation = Propagation.REQUIRED)
     public <T> T inTransaction(Supplier<T> work) {
         return work.get();
