@@ -4,7 +4,7 @@ import com.wallet.wallet.application.TransactionHistoryResult;
 import java.time.Instant;
 import java.util.List;
 
-record TransactionHistoryResponse(List<Entry> entries, long total, int offset, int limit) {
+record TransactionHistoryResponse(List<Entry> entries, Long nextBeforeId, int limit) {
 
     record Entry(String journalId, String direction, long amountMinor, String description, Instant createdAt) {
     }
@@ -13,6 +13,6 @@ record TransactionHistoryResponse(List<Entry> entries, long total, int offset, i
         var entries = result.entries().stream()
                 .map(e -> new Entry(e.journalId(), e.direction(), e.amountMinor(), e.description(), e.createdAt()))
                 .toList();
-        return new TransactionHistoryResponse(entries, result.total(), result.offset(), result.limit());
+        return new TransactionHistoryResponse(entries, result.nextBeforeId(), result.limit());
     }
 }

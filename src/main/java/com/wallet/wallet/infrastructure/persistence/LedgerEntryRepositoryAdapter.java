@@ -27,17 +27,11 @@ class LedgerEntryRepositoryAdapter implements LedgerEntryRepository {
     }
 
     @Override
-    public List<LedgerEntry> findByWalletId(Long walletId, int offset, int limit) {
+    public List<LedgerEntry> findByWalletId(Long walletId, Long beforeId, int limit) {
         String account = LedgerAccount.ofWallet(walletId).value();
-        int page = limit > 0 ? offset / limit : 0;
-        return springData.findByAccount(account, PageRequest.of(page, limit)).stream()
+        return springData.findPage(account, beforeId, PageRequest.of(0, limit)).stream()
                 .map(this::toDomain)
                 .toList();
-    }
-
-    @Override
-    public long countByWalletId(Long walletId) {
-        return springData.countByAccount(LedgerAccount.ofWallet(walletId).value());
     }
 
     @Override

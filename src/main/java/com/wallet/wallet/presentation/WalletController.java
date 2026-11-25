@@ -51,9 +51,9 @@ class WalletController {
     @GetMapping("/transactions")
     ApiResponse<TransactionHistoryResponse> transactions(
             Authentication authentication,
-            @RequestParam(defaultValue = "0") @Min(0) int offset,
+            @RequestParam(required = false) Long beforeId,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int limit) {
-        var result = transactionHistoryUseCase.execute(CurrentUser.id(authentication), offset, limit);
+        var result = transactionHistoryUseCase.execute(CurrentUser.id(authentication), beforeId, limit);
         return ApiResponse.of(TransactionHistoryResponse.from(result));
     }
 }

@@ -20,15 +20,15 @@ public class TransactionHistoryUseCase {
         this.transactionRunner = transactionRunner;
     }
 
-    public TransactionHistoryResult execute(Long userId, int offset, int limit) {
+    public TransactionHistoryResult execute(Long userId, Long beforeId, int limit) {
         return transactionRunner.inTransaction(() -> {
             Wallet wallet = walletRepository.findByUserId(userId)
                     .orElseThrow(() -> new NotFoundException("Wallet not found for user " + userId));
-            var entries = ledgerEntryRepository.findByWalletId(wallet.id(), offset, limit).stream()
-                    .map(TransactionEntryResult::from)
-                    .toList();
-            long total = ledgerEntryRepository.countByWalletId(wallet.id());
-            return new TransactionHistoryResult(entries, total, offset, limit);
+            var page = ledgerEntryRepository.findByWalletId(wallet.id(), beforeId, limit);
+            var entries = page.stream().map(TransactionEntryResult::from).toList();
+            // A full page means there may be more; the cursor is the oldest id returned.
+            Long nextBeforeId = page.size() == limit ? page.get(limit - 1).id() : null;
+            return new TransactionHistoryResult(entries, nextBeforeId, limit);
         });
     }
 }
