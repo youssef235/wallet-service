@@ -56,7 +56,12 @@ class PaymobWebhookController {
                 obj.get("id").asLong(),
                 merchantOrderId,
                 obj.path("amount_cents").asLong(),
-                obj.path("success").asBoolean(false));
+                obj.path("currency").asText(""),
+                obj.path("success").asBoolean(false),
+                obj.path("pending").asBoolean(false),
+                obj.path("error_occured").asBoolean(false),
+                obj.path("is_voided").asBoolean(false),
+                obj.path("is_refunded").asBoolean(false));
 
         WebhookProcessingResult result = handlePaymobWebhookUseCase.execute(callback);
         if (result == WebhookProcessingResult.UNKNOWN_ORDER) {

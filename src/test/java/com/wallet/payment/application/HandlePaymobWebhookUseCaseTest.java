@@ -55,7 +55,7 @@ class HandlePaymobWebhookUseCaseTest {
         when(walletRepository.save(any(Wallet.class))).thenAnswer(inv -> inv.getArgument(0));
         when(userRepository.findById(1L)).thenReturn(Optional.empty());
 
-        var result = useCase.execute(new PaymobTransactionCallback(999L, "WTU-1-abc", 10_000, true));
+        var result = useCase.execute(new PaymobTransactionCallback(999L, "WTU-1-abc", 10_000, "EGP", true, false, false, false, false));
 
         assertThat(result).isEqualTo(WebhookProcessingResult.CREDITED);
 
@@ -77,7 +77,7 @@ class HandlePaymobWebhookUseCaseTest {
     void retriedWebhookWithSameTransactionIdIsIgnored() {
         when(topUpRepository.existsByPaymobTransactionId(999L)).thenReturn(true);
 
-        var result = useCase.execute(new PaymobTransactionCallback(999L, "WTU-1-abc", 10_000, true));
+        var result = useCase.execute(new PaymobTransactionCallback(999L, "WTU-1-abc", 10_000, "EGP", true, false, false, false, false));
 
         assertThat(result).isEqualTo(WebhookProcessingResult.ALREADY_PROCESSED);
         verify(walletRepository, never()).save(any());
@@ -91,36 +91,59 @@ class HandlePaymobWebhookUseCaseTest {
         when(topUpRepository.findByMerchantOrderIdForUpdate("WTU-1-abc"))
                 .thenReturn(Optional.of(succeeded));
 
-        var result = useCase.execute(new PaymobTransactionCallback(888L, "WTU-1-abc", 10_000, true));
+        var result = useCase.execute(new PaymobTransactionCallback(888L, "WTU-1-abc", 10_000, "EGP", true, false, false, false, false));
 
         assertThat(result).isEqualTo(WebhookProcessingResult.ALREADY_PROCESSED);
         verify(walletRepository, never()).save(any());
     }
 
     @Test
-    void failedPaymentMarksTopUpFailedWithoutCrediting() {
+    void failedPaymentLeavesTopUpPendingForRetryAndNeverCredits() {
         when(topUpRepository.existsByPaymobTransactionId(999L)).thenReturn(false);
         when(topUpRepository.findByMerchantOrderIdForUpdate("WTU-1-abc"))
                 .thenReturn(Optional.of(pendingTopUp));
 
-        var result = useCase.execute(new PaymobTransactionCallback(999L, "WTU-1-abc", 10_000, false));
+        var result = useCase.execute(new PaymobTransactionCallback(999L, "WTU-1-abc", 10_000, "EGP", false, false, false, false, false));
 
         assertThat(result).isEqualTo(WebhookProcessingResult.PAYMENT_FAILED);
+        // No state change: a later successful callback for the same order must still credit.
+        verify(topUpRepository, never()).save(any());
         verify(walletRepository, never()).save(any());
         verify(ledgerEntryRepository, never()).saveAll(any());
     }
 
     @Test
-    void amountMismatchFailsTheTopUpAndNeverCredits() {
+    void amountMismatchParksTheTopUpForReviewAndNeverCredits() {
         when(topUpRepository.existsByPaymobTransactionId(999L)).thenReturn(false);
         when(topUpRepository.findByMerchantOrderIdForUpdate("WTU-1-abc"))
                 .thenReturn(Optional.of(pendingTopUp));
 
-        var result = useCase.execute(new PaymobTransactionCallback(999L, "WTU-1-abc", 5_000, true));
+        var result = useCase.execute(new PaymobTransactionCallback(999L, "WTU-1-abc", 5_000, "EGP", true, false, false, false, false));
 
-        assertThat(result).isEqualTo(WebhookProcessingResult.PAYMENT_FAILED);
+        assertThat(result).isEqualTo(WebhookProcessingResult.NEEDS_REVIEW);
+        var captor = ArgumentCaptor.forClass(TopUp.class);
+        verify(topUpRepository).save(captor.capture());
+        assertThat(captor.getValue().status()).isEqualTo(com.wallet.payment.domain.TopUpStatus.NEEDS_REVIEW);
+        assertThat(captor.getValue().paymobTransactionId()).isEqualTo(999L);
         verify(walletRepository, never()).save(any());
         verify(ledgerEntryRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void successfulWebhookAfterAFailedAttemptStillCredits() {
+        when(topUpRepository.existsByPaymobTransactionId(999L)).thenReturn(false);
+        when(topUpRepository.findByMerchantOrderIdForUpdate("WTU-1-abc"))
+                .thenReturn(Optional.of(pendingTopUp));
+        when(walletRepository.findByUserIdForUpdate(1L))
+                .thenReturn(Optional.of(Wallet.reconstitute(11L, 1L, 0, "EGP", NOW)));
+        when(walletRepository.save(any(Wallet.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+
+        var failed = useCase.execute(new PaymobTransactionCallback(998L, "WTU-1-abc", 10_000, "EGP", false, false, false, false, false));
+        var settled = useCase.execute(new PaymobTransactionCallback(999L, "WTU-1-abc", 10_000, "EGP", true, false, false, false, false));
+
+        assertThat(failed).isEqualTo(WebhookProcessingResult.PAYMENT_FAILED);
+        assertThat(settled).isEqualTo(WebhookProcessingResult.CREDITED);
     }
 
     @Test
@@ -128,7 +151,7 @@ class HandlePaymobWebhookUseCaseTest {
         when(topUpRepository.existsByPaymobTransactionId(999L)).thenReturn(false);
         when(topUpRepository.findByMerchantOrderIdForUpdate("WTU-1-xyz")).thenReturn(Optional.empty());
 
-        var result = useCase.execute(new PaymobTransactionCallback(999L, "WTU-1-xyz", 10_000, true));
+        var result = useCase.execute(new PaymobTransactionCallback(999L, "WTU-1-xyz", 10_000, "EGP", true, false, false, false, false));
 
         assertThat(result).isEqualTo(WebhookProcessingResult.UNKNOWN_ORDER);
     }

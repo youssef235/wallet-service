@@ -72,6 +72,14 @@ public class TopUp {
                 merchantOrderId, paymobOrderId, paymobTransactionId, journalId, createdAt);
     }
 
+    public TopUp markNeedsReview(Long paymobTransactionId) {
+        if (status != TopUpStatus.PENDING) {
+            throw new InvalidTopUpException("Only a pending top-up can need review, current: " + status);
+        }
+        return new TopUp(id, userId, amountMinor, currency, TopUpStatus.NEEDS_REVIEW,
+                merchantOrderId, paymobOrderId, paymobTransactionId, journalId, createdAt);
+    }
+
     public TopUp markExpired() {
         if (status != TopUpStatus.PENDING) {
             throw new InvalidTopUpException("Only a pending top-up can expire, current: " + status);

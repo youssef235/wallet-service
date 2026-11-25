@@ -82,16 +82,26 @@ public class HandlePaymobWebhookUseCase {
             return WebhookProcessingResult.ALREADY_PROCESSED;
         }
 
-        if (!callback.success()) {
-            topUpRepository.save(topUp.markFailed());
+        if (!callback.settled()) {
+            // Declined, pending, errored, voided or refunded: no money was captured for
+            // this attempt, so the top-up stays PENDING - the customer can retry on the
+            // same payment page and a later successful callback still credits them.
+            // The expire job closes abandoned top-ups.
+            log.info("Unsettled payment for top-up {} (success={}, pending={}, error={}, voided={}, refunded={})",
+                    topUp.merchantOrderId(), callback.success(), callback.pending(),
+                    callback.errorOccured(), callback.isVoided(), callback.isRefunded());
             return WebhookProcessingResult.PAYMENT_FAILED;
         }
 
-        if (callback.amountCents() != topUp.amountMinor()) {
-            log.error("Amount mismatch for top-up {}: expected {} piasters, webhook says {}",
-                    topUp.merchantOrderId(), topUp.amountMinor(), callback.amountCents());
-            topUpRepository.save(topUp.markFailed());
-            return WebhookProcessingResult.PAYMENT_FAILED;
+        if (callback.amountCents() != topUp.amountMinor()
+                || !topUp.currency().equalsIgnoreCase(callback.currency())) {
+            // The customer WAS charged something other than what we recorded - never
+            // credit silently, park it for a human.
+            log.error("Top-up {} needs review: expected {} {}, webhook says {} {}",
+                    topUp.merchantOrderId(), topUp.amountMinor(), topUp.currency(),
+                    callback.amountCents(), callback.currency());
+            topUpRepository.save(topUp.markNeedsReview(callback.transactionId()));
+            return WebhookProcessingResult.NEEDS_REVIEW;
         }
 
         Instant now = clock.instant();
