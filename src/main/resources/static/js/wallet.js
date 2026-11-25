@@ -108,17 +108,11 @@
     app.innerHTML = "";
     var shell = el(
       '<div class="auth-shell">' +
-        '<aside class="auth-poster">' +
-          '<div class="poster-kicker">WALLET SERVICE</div>' +
-          "<h1>محفظة إلكترونية بمعمارية نظيفة، من الشحن للقيد المحاسبي.</h1>" +
-          '<ul class="poster-points">' +
-            "<li>شحن الرصيد عبر بوابة Paymob ببطاقة أو محفظة</li>" +
-            "<li>دفتر قيود مزدوج يضمن إن كل قرش مكانه معروف</li>" +
-            "<li>Webhooks موقّعة بـ HMAC مع حماية من التكرار</li>" +
-            "<li>جلسات آمنة بتدوير Refresh Token وكشف السرقة</li>" +
-          "</ul>" +
-        "</aside>" +
-        '<section class="auth-panel card">' +
+        '<div class="auth-hero">' +
+          "<h1>فلوسك، <span class=\"grad-text\">بمعمارية نظيفة</span></h1>" +
+          '<p class="auth-sub">محفظة إلكترونية من الشحن للقيد المحاسبي — Spring Boot وPaymob.</p>' +
+        "</div>" +
+        '<section class="card auth-card">' +
           '<div class="auth-tabs">' +
             '<button id="tab-login" type="button">دخول</button>' +
             '<button id="tab-register" type="button">حساب جديد</button>' +
@@ -134,6 +128,12 @@
             '<button class="btn" id="auth-submit" type="submit" style="width:100%">دخول</button>' +
           "</form>" +
         "</section>" +
+        '<ul class="auth-features">' +
+          "<li>شحن عبر بوابة Paymob</li>" +
+          "<li>دفتر قيود مزدوج</li>" +
+          "<li>Webhooks موقّعة بـ HMAC</li>" +
+          "<li>جلسات بتدوير Refresh Token</li>" +
+        "</ul>" +
       "</div>"
     );
     app.appendChild(shell);
@@ -203,11 +203,14 @@
             "<h1>أهلًا" + (user && user.fullName ? " يا " + esc(String(user.fullName).split(" ")[0]) : "") + "</h1>" +
           "</div>" +
         "</div>" +
-        '<section class="balance-card" style="margin-block-end:1.4rem">' +
-          '<div class="balance-label">الرصيد المتاح</div>' +
+        '<section class="balance-card">' +
+          '<div class="balance-top">' +
+            '<span class="balance-label">الرصيد المتاح</span>' +
+            '<span class="balance-badge">EGP</span>' +
+          "</div>" +
           '<div class="balance-value" id="balance"><span class="spin"></span></div>' +
           '<div class="balance-actions">' +
-            '<button class="btn btn-sm" id="refresh-btn" type="button">تحديث</button>' +
+            '<button class="btn btn-glass btn-sm" id="refresh-btn" type="button">تحديث الرصيد</button>' +
           "</div>" +
         "</section>" +
         '<div class="grid">' +
@@ -226,7 +229,7 @@
           "</section>" +
           '<section class="card">' +
             '<div class="section-title"><h2>سجل الحركات</h2>' +
-            '<button class="btn btn-ghost btn-sm" id="tx-refresh" type="button">تحديث</button></div>' +
+            '<button class="btn btn-quiet btn-sm" id="tx-refresh" type="button">تحديث</button></div>' +
             '<ul class="tx-list" id="tx-list"><div class="empty">جارِ التحميل…</div></ul>' +
           "</section>" +
         "</div>" +
@@ -274,9 +277,13 @@
       list.innerHTML = "";
       entries.forEach(function (tx) {
         var credit = tx.direction === "CREDIT";
+        var arrow = credit
+          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>';
         list.appendChild(el(
           '<li class="tx">' +
-            "<div>" +
+            '<span class="tx-icon ' + (credit ? "credit" : "debit") + '">' + arrow + "</span>" +
+            '<div class="tx-body">' +
               '<div class="tx-desc">' + esc(tx.description || (credit ? "إيداع" : "خصم")) + "</div>" +
               '<div class="tx-date">' + esc(fmtDate(tx.createdAt)) + "</div>" +
             "</div>" +
