@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:wallet-test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=15000
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+  mail:
+    host: localhost
+    port: 1025
+
+app:
+  jwt:
+    secret: test-secret-test-secret-test-secret-32
+    expiration-minutes: 60
+    refresh-expiration-days: 30
+  wallet:
+    default-currency: EGP
+  paymob:
+    enabled: false
+    hmac-secret: test-hmac-secret
+  mail:
+    enabled: false
