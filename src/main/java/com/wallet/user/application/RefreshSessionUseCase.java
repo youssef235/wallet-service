@@ -42,33 +42,50 @@ public class RefreshSessionUseCase {
     }
 
     public AuthResult execute(String presentedToken) {
-        return transactionRunner.inTransaction(() -> {
-            Instant now = clock.instant();
-            RefreshToken stored = refreshTokenRepository.findByTokenHash(tokenHasher.hash(presentedToken))
-                    .orElseThrow(InvalidCredentialsException::new);
+        // The transaction returns an outcome instead of throwing: throwing inside the
+        // transaction would roll back the theft-detection revoke along with it.
+        RefreshOutcome outcome = transactionRunner.inTransaction(() -> doRefresh(presentedToken));
+        if (outcome instanceof RefreshOutcome.Failed) {
+            throw new InvalidCredentialsException();
+        }
+        return ((RefreshOutcome.Success) outcome).result();
+    }
 
-            if (stored.revoked()) {
-                // A rotated token was presented again: treat as token theft and kill all sessions.
-                refreshTokenRepository.revokeAllForUser(stored.userId());
-                throw new InvalidCredentialsException();
-            }
-            if (!stored.isUsableAt(now)) {
-                throw new InvalidCredentialsException();
-            }
+    private RefreshOutcome doRefresh(String presentedToken) {
+        Instant now = clock.instant();
+        RefreshToken stored = refreshTokenRepository.findByTokenHash(tokenHasher.hash(presentedToken))
+                .orElse(null);
 
-            User user = userRepository.findById(stored.userId())
-                    .orElseThrow(() -> new NotFoundException("User not found"));
+        if (stored == null) {
+            return new RefreshOutcome.Failed();
+        }
+        if (stored.revoked()) {
+            // A rotated token was presented again: treat as token theft and kill all sessions.
+            // Committed with this transaction; the exception is thrown after it completes.
+            refreshTokenRepository.revokeAllForUser(stored.userId());
+            return new RefreshOutcome.Failed();
+        }
+        if (!stored.isUsableAt(now)) {
+            return new RefreshOutcome.Failed();
+        }
 
-            String newRefreshValue = RefreshToken.newTokenValue();
-            Instant newRefreshExpiresAt = now.plus(refreshTokenLifetime);
-            RefreshToken rotated = stored.rotate(tokenHasher.hash(newRefreshValue));
-            refreshTokenRepository.save(rotated);
-            refreshTokenRepository.save(
-                    RefreshToken.issue(user.id(), tokenHasher.hash(newRefreshValue), newRefreshExpiresAt, now));
+        User user = userRepository.findById(stored.userId())
+                .orElseThrow(() -> new NotFoundException("User not found"));
 
-            IssuedToken access = tokenService.generate(user.id(), user.email(), user.role());
-            return new AuthResult(access.value(), access.expiresAt(), newRefreshValue, newRefreshExpiresAt,
-                    UserResult.from(user));
-        });
+        String newRefreshValue = RefreshToken.newTokenValue();
+        Instant newRefreshExpiresAt = now.plus(refreshTokenLifetime);
+        RefreshToken rotated = stored.rotate(tokenHasher.hash(newRefreshValue));
+        refreshTokenRepository.save(rotated);
+        refreshTokenRepository.save(
+                RefreshToken.issue(user.id(), tokenHasher.hash(newRefreshValue), newRefreshExpiresAt, now));
+
+        IssuedToken access = tokenService.generate(user.id(), user.email(), user.role());
+        return new RefreshOutcome.Success(new AuthResult(access.value(), access.expiresAt(), newRefreshValue,
+                newRefreshExpiresAt, UserResult.from(user)));
+    }
+
+    private sealed interface RefreshOutcome {
+        record Success(AuthResult result) implements RefreshOutcome {}
+        record Failed() implements RefreshOutcome {}
     }
 }
