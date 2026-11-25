@@ -6,5 +6,5 @@ public interface TransferRepository {
 
     Transfer save(Transfer transfer);
 
-    Optional<Transfer> findByIdempotencyKey(String idempotencyKey);
+    Optional<Transfer> findByFromWalletIdAndIdempotencyKey(Long fromWalletId, String idempotencyKey);
 }

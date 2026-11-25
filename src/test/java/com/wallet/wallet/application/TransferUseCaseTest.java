@@ -18,6 +18,7 @@ import com.wallet.wallet.domain.LedgerEntryRepository;
 import com.wallet.wallet.domain.LedgerJournal;
 import com.wallet.wallet.domain.SelfTransferException;
 import com.wallet.wallet.domain.Transfer;
+import com.wallet.shared.domain.ConflictException;
 import com.wallet.wallet.domain.TransferRepository;
 import com.wallet.wallet.domain.Wallet;
 import com.wallet.wallet.domain.WalletRepository;
@@ -58,6 +59,7 @@ class TransferUseCaseTest {
         Wallet recipientWallet = Wallet.reconstitute(22L, 2L, recipientBalance, "EGP", NOW);
         when(userRepository.findById(1L)).thenReturn(Optional.of(sender));
         when(userRepository.findByEmail("sara@example.com")).thenReturn(Optional.of(recipient));
+        when(walletRepository.findByUserId(1L)).thenReturn(Optional.of(senderWallet));
         when(walletRepository.findByUserIdForUpdate(1L)).thenReturn(Optional.of(senderWallet));
         when(walletRepository.findByUserIdForUpdate(2L)).thenReturn(Optional.of(recipientWallet));
         when(walletRepository.save(any(Wallet.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -66,7 +68,7 @@ class TransferUseCaseTest {
     @Test
     void successfulTransferMovesMoneyAndPostsBalancedJournal() {
         givenWallets(5_000, 1_000);
-        when(transferRepository.findByIdempotencyKey("key-1")).thenReturn(Optional.empty());
+        when(transferRepository.findByFromWalletIdAndIdempotencyKey(11L, "key-1")).thenReturn(Optional.empty());
 
         TransferResult result = useCase.execute(new TransferCommand(1L, "sara@example.com", 2_000, "key-1"));
 
@@ -88,9 +90,8 @@ class TransferUseCaseTest {
     void sameIdempotencyKeyReplaysWithoutMovingMoneyAgain() {
         givenWallets(5_000, 1_000);
         Transfer stored = Transfer.of("key-1", 11L, 22L, 2_000, "journal-1", NOW);
-        when(transferRepository.findByIdempotencyKey("key-1")).thenReturn(Optional.of(stored));
-        when(walletRepository.findByUserId(1L))
-                .thenReturn(Optional.of(Wallet.reconstitute(11L, 1L, 3_000, "EGP", NOW)));
+        when(transferRepository.findByFromWalletIdAndIdempotencyKey(11L, "key-1")).thenReturn(Optional.of(stored));
+        when(walletRepository.findByUserId(2L)).thenReturn(Optional.of(Wallet.reconstitute(22L, 2L, 3_000, "EGP", NOW)));
 
         TransferResult result = useCase.execute(new TransferCommand(1L, "sara@example.com", 2_000, "key-1"));
 
@@ -103,7 +104,7 @@ class TransferUseCaseTest {
     @Test
     void insufficientFundsIsRejected() {
         givenWallets(1_000, 0);
-        when(transferRepository.findByIdempotencyKey("key-2")).thenReturn(Optional.empty());
+        when(transferRepository.findByFromWalletIdAndIdempotencyKey(11L, "key-2")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> useCase.execute(new TransferCommand(1L, "sara@example.com", 2_000, "key-2")))
                 .isInstanceOf(InsufficientFundsException.class);
@@ -112,11 +113,39 @@ class TransferUseCaseTest {
 
     @Test
     void transferToYourselfIsRejected() {
-        when(transferRepository.findByIdempotencyKey("key-3")).thenReturn(Optional.empty());
+        when(transferRepository.findByFromWalletIdAndIdempotencyKey(11L, "key-3")).thenReturn(Optional.empty());
         when(userRepository.findById(1L)).thenReturn(Optional.of(sender));
         when(userRepository.findByEmail("ahmed@example.com")).thenReturn(Optional.of(sender));
 
         assertThatThrownBy(() -> useCase.execute(new TransferCommand(1L, "ahmed@example.com", 100, "key-3")))
                 .isInstanceOf(SelfTransferException.class);
+    }
+
+    @Test
+    void sameIdempotencyKeyWithDifferentAmountIsRejected() {
+        givenWallets(5_000, 1_000);
+        Transfer stored = Transfer.of("key-1", 11L, 22L, 2_000, "journal-1", NOW);
+        when(transferRepository.findByFromWalletIdAndIdempotencyKey(11L, "key-1")).thenReturn(Optional.of(stored));
+
+        assertThatThrownBy(() -> useCase.execute(new TransferCommand(1L, "sara@example.com", 5_000, "key-1")))
+                .isInstanceOf(ConflictException.class);
+        verify(ledgerEntryRepository, never()).saveAll(any());
+        verify(transferRepository, never()).save(any());
+    }
+
+    @Test
+    void sameIdempotencyKeyWithDifferentRecipientIsRejected() {
+        givenWallets(5_000, 1_000);
+        User other = User.reconstitute(3L, "mona@example.com", "Mona M", "hash", UserRole.USER, NOW);
+        when(userRepository.findByEmail("mona@example.com")).thenReturn(Optional.of(other));
+        when(walletRepository.findByUserId(3L)).thenReturn(Optional.of(Wallet.reconstitute(33L, 3L, 0, "EGP", NOW)));
+        when(walletRepository.findByUserIdForUpdate(3L)).thenReturn(Optional.of(Wallet.reconstitute(33L, 3L, 0, "EGP", NOW)));
+        Transfer stored = Transfer.of("key-1", 11L, 22L, 2_000, "journal-1", NOW);
+        when(transferRepository.findByFromWalletIdAndIdempotencyKey(11L, "key-1")).thenReturn(Optional.of(stored));
+
+        assertThatThrownBy(() -> useCase.execute(new TransferCommand(1L, "mona@example.com", 2_000, "key-1")))
+                .isInstanceOf(ConflictException.class);
+        verify(ledgerEntryRepository, never()).saveAll(any());
+        verify(transferRepository, never()).save(any());
     }
 }

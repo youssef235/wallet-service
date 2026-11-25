@@ -2,6 +2,7 @@ package com.wallet.wallet.application;
 
 import com.wallet.notification.application.NotificationService;
 import com.wallet.shared.application.TransactionRunner;
+import com.wallet.shared.domain.ConflictException;
 import com.wallet.shared.domain.NotFoundException;
 import com.wallet.user.domain.User;
 import com.wallet.user.domain.UserRepository;
@@ -64,19 +65,18 @@ public class TransferUseCase {
             return transactionRunner.inTransaction(() -> doTransfer(command, now));
         } catch (DataIntegrityViolationException duplicateKey) {
             // Lost the race against an identical concurrent request: replay its stored result.
-            return transactionRunner.inTransaction(() ->
-                    transferRepository.findByIdempotencyKey(command.idempotencyKey())
-                            .map(stored -> replayResult(command, stored))
-                            .orElseThrow(() -> duplicateKey));
+            return transactionRunner.inTransaction(() -> {
+                Wallet senderWallet = walletRepository.findByUserId(command.senderUserId())
+                        .orElseThrow(() -> duplicateKey);
+                return transferRepository.findByFromWalletIdAndIdempotencyKey(
+                                senderWallet.id(), command.idempotencyKey())
+                        .map(stored -> replayResult(command, stored))
+                        .orElseThrow(() -> duplicateKey);
+            });
         }
     }
 
     private TransferResult doTransfer(TransferCommand command, Instant now) {
-        var existing = transferRepository.findByIdempotencyKey(command.idempotencyKey());
-        if (existing.isPresent()) {
-            return replayResult(command, existing.get());
-        }
-
         User sender = userRepository.findById(command.senderUserId())
                 .orElseThrow(() -> new NotFoundException("Sender not found"));
         User recipient = userRepository.findByEmail(command.recipientEmail().trim().toLowerCase())
@@ -90,6 +90,15 @@ public class TransferUseCase {
         Wallet second = lockWallet(sender.id(), recipient.id(), false);
         Wallet senderWallet = first.userId().equals(sender.id()) ? first : second;
         Wallet recipientWallet = first.userId().equals(recipient.id()) ? first : second;
+
+        // Idempotency check after locking: serialized per sender wallet, and it must not
+        // read the wallet without a lock first (a cached unlocked entity would shadow the
+        // locked read and lose concurrent balance updates).
+        var existing = transferRepository.findByFromWalletIdAndIdempotencyKey(
+                senderWallet.id(), command.idempotencyKey());
+        if (existing.isPresent()) {
+            return replayResult(command, existing.get());
+        }
 
         Wallet senderAfter = senderWallet.debit(command.amountMinor());
         Wallet recipientAfter = recipientWallet.credit(command.amountMinor());
@@ -129,9 +138,19 @@ public class TransferUseCase {
 
     /** Replays the stored outcome of a request that already ran with this idempotency key. */
     private TransferResult replayResult(TransferCommand command, Transfer stored) {
+        if (stored.amountMinor() != command.amountMinor()) {
+            throw new ConflictException("Idempotency key reused with a different request");
+        }
         Wallet senderWallet = walletRepository.findByUserId(command.senderUserId())
                 .orElseThrow(() -> new NotFoundException("Wallet not found for user " + command.senderUserId()));
+        User recipient = userRepository.findByEmail(command.recipientEmail().trim().toLowerCase())
+                .orElseThrow(() -> new NotFoundException("No user registered with email " + command.recipientEmail()));
+        Wallet recipientWallet = walletRepository.findByUserId(recipient.id())
+                .orElseThrow(() -> new ConflictException("Idempotency key reused with a different request"));
+        if (!stored.toWalletId().equals(recipientWallet.id())) {
+            throw new ConflictException("Idempotency key reused with a different request");
+        }
         return new TransferResult(stored.idempotencyKey(), stored.amountMinor(), senderWallet.currency(),
-                senderWallet.balanceMinor(), command.recipientEmail(), stored.createdAt(), true);
+                senderWallet.balanceMinor(), recipient.email(), stored.createdAt(), true);
     }
 }

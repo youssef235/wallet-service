@@ -23,8 +23,8 @@ class TransferRepositoryAdapter implements TransferRepository {
     }
 
     @Override
-    public Optional<Transfer> findByIdempotencyKey(String idempotencyKey) {
-        return springData.findByIdempotencyKey(idempotencyKey).map(this::toDomain);
+    public Optional<Transfer> findByFromWalletIdAndIdempotencyKey(Long fromWalletId, String idempotencyKey) {
+        return springData.findByFromWalletIdAndIdempotencyKey(fromWalletId, idempotencyKey).map(this::toDomain);
     }
 
     private Transfer toDomain(TransferJpaEntity e) {

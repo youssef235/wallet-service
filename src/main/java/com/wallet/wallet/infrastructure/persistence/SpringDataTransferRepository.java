@@ -5,5 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 interface SpringDataTransferRepository extends JpaRepository<TransferJpaEntity, Long> {
 
-    Optional<TransferJpaEntity> findByIdempotencyKey(String idempotencyKey);
+    Optional<TransferJpaEntity> findByFromWalletIdAndIdempotencyKey(Long fromWalletId, String idempotencyKey);
 }
