@@ -4,7 +4,11 @@ import com.wallet.shared.domain.ConflictException;
 import com.wallet.shared.domain.DomainException;
 import com.wallet.shared.domain.ForbiddenOperationException;
 import com.wallet.shared.domain.NotFoundException;
+import jakarta.validation.ConstraintViolationException;
 import java.util.List;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -52,6 +56,39 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoResourceFoundException.class)
     ResponseEntity<ErrorResponse> handleNoResource(NoResourceFoundException ex) {
         return build(HttpStatus.NOT_FOUND, "NOT_FOUND", "Resource not found");
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ResponseEntity<ErrorResponse> handleUnreadableBody(HttpMessageNotReadableException ex) {
+        return build(HttpStatus.BAD_REQUEST, "MALFORMED_BODY", "Request body is missing or malformed");
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    ResponseEntity<ErrorResponse> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        return build(HttpStatus.METHOD_NOT_ALLOWED, "METHOD_NOT_ALLOWED",
+                "Method " + ex.getMethod() + " is not supported here");
+    }
+
+    /** Bean validation on @RequestParam/@PathVariable (e.g. @Min/@Max in WalletController). */
+    @ExceptionHandler(ConstraintViolationException.class)
+    ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException ex) {
+        List<FieldViolation> violations = ex.getConstraintViolations().stream()
+                .map(v -> new FieldViolation(v.getPropertyPath().toString(), v.getMessage()))
+                .toList();
+        ErrorResponse body = ErrorResponse.of("VALIDATION_FAILED", "Request validation failed", violations);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    /** A unique-constraint race lost at the database: the request conflicts with existing state. */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException ex) {
+        log.warn("Data integrity violation: {}", ex.getMessage());
+        return build(HttpStatus.CONFLICT, "CONFLICT", "Request conflicts with existing data");
+    }
+
+    @ExceptionHandler(ArithmeticException.class)
+    ResponseEntity<ErrorResponse> handleArithmetic(ArithmeticException ex) {
+        return build(HttpStatus.UNPROCESSABLE_CONTENT, "NUMERIC_ERROR", "Numeric value out of range");
     }
 
     @ExceptionHandler(Exception.class)
