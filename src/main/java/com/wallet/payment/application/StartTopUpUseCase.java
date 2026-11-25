@@ -45,25 +45,37 @@ public class StartTopUpUseCase {
     }
 
     public StartTopUpResult execute(StartTopUpCommand command) {
-        return transactionRunner.inTransaction(() -> {
-            Instant now = clock.instant();
-            User user = userRepository.findById(command.userId())
-                    .orElseThrow(() -> new NotFoundException("User not found"));
+        Instant now = clock.instant();
+        User user = userRepository.findById(command.userId())
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        // Step 1: record the PENDING top-up so the webhook can match it later.
+        TopUp saved = transactionRunner.inTransaction(() -> {
             Wallet wallet = walletRepository.findByUserId(command.userId())
                     .orElseGet(() -> walletRepository.save(
                             Wallet.openFor(command.userId(), defaultCurrency, now)));
-
             String merchantOrderId = "WTU-" + command.userId() + "-" + UUID.randomUUID();
-            TopUp saved = topUpRepository.save(
-                    TopUp.pending(command.userId(), command.amountMinor(), wallet.currency(), merchantOrderId, now));
-
-            PaymentGateway.PaymentIntent intent = paymentGateway.createPaymentIntent(
-                    saved.id(), merchantOrderId, saved.amountMinor(), saved.currency(),
-                    user.email(), user.fullName());
-            topUpRepository.save(saved.withPaymobOrder(intent.providerOrderId()));
-
-            return new StartTopUpResult(saved.id(), merchantOrderId, saved.amountMinor(),
-                    saved.currency(), intent.paymentUrl());
+            return topUpRepository.save(TopUp.pending(
+                    command.userId(), command.amountMinor(), wallet.currency(), merchantOrderId, now));
         });
+
+        // Step 2: call Paymob outside any transaction - slow HTTP must never hold a DB
+        // connection or lock. If the gateway fails, close the top-up as FAILED.
+        PaymentGateway.PaymentIntent intent;
+        try {
+            intent = paymentGateway.createPaymentIntent(
+                    saved.id(), saved.merchantOrderId(), saved.amountMinor(), saved.currency(),
+                    user.email(), user.fullName());
+        } catch (RuntimeException gatewayFailure) {
+            transactionRunner.inTransaction(() -> topUpRepository.save(saved.markFailed()));
+            throw gatewayFailure;
+        }
+
+        // Step 3: attach the provider order id in its own short transaction.
+        transactionRunner.inTransaction(() ->
+                topUpRepository.save(saved.withPaymobOrder(intent.providerOrderId())));
+
+        return new StartTopUpResult(saved.id(), saved.merchantOrderId(), saved.amountMinor(),
+                saved.currency(), intent.paymentUrl());
     }
 }

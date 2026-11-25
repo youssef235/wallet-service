@@ -1,6 +1,9 @@
 package com.wallet.notification.infrastructure;
 
 import com.wallet.notification.application.NotificationService;
+import jakarta.annotation.PreDestroy;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -8,6 +11,8 @@ import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Sends plain-text emails over SMTP. When mail is disabled (no SMTP configured,
@@ -21,6 +26,11 @@ class EmailNotificationService implements NotificationService {
     private final JavaMailSender mailSender;
     private final boolean enabled;
     private final String from;
+    private final ExecutorService mailExecutor = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "mail-sender");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     EmailNotificationService(JavaMailSender mailSender,
                              @Value("${app.mail.enabled:false}") boolean enabled,
@@ -58,6 +68,21 @@ class EmailNotificationService implements NotificationService {
             log.info("Mail disabled - skipped email to {} with subject '{}'", to, subject);
             return;
         }
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            // Send only after the money movement commits: an email about a transfer that
+            // rolled back would tell the recipient about money that never arrived.
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    mailExecutor.execute(() -> deliver(to, subject, body));
+                }
+            });
+            return;
+        }
+        deliver(to, subject, body);
+    }
+
+    private void deliver(String to, String subject, String body) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(from);
@@ -69,6 +94,11 @@ class EmailNotificationService implements NotificationService {
             // A notification failure must never roll back a completed money movement.
             log.warn("Failed to send email to {}: {}", to, ex.getMessage());
         }
+    }
+
+    @PreDestroy
+    void shutdown() {
+        mailExecutor.shutdown();
     }
 
     private static String format(long amountMinor) {

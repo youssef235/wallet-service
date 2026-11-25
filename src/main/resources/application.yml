@@ -33,6 +33,8 @@ app:
     iframe-id: ${PAYMOB_IFRAME_ID:0}
     hmac-secret: ${PAYMOB_HMAC_SECRET:}
     topup-max-age-hours: ${TOPUP_MAX_AGE_HOURS:24}
+    connect-timeout: ${PAYMOB_CONNECT_TIMEOUT:3s}
+    read-timeout: ${PAYMOB_READ_TIMEOUT:10s}
   mail:
     enabled: ${MAIL_ENABLED:false}
     from: ${MAIL_FROM:wallet-service@localhost}
