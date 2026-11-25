@@ -43,7 +43,7 @@ class StartTopUpUseCaseTest {
     void setUp() {
         useCase = new StartTopUpUseCase(topUpRepository, userRepository, walletRepository,
                 paymentGateway, new FakeTransactionRunner(),
-                Clock.fixed(NOW, ZoneOffset.UTC), "EGP");
+                Clock.fixed(NOW, ZoneOffset.UTC));
         when(userRepository.findById(1L)).thenReturn(Optional.of(
                 User.reconstitute(1L, "a@example.com", "Ahmed", "hash", UserRole.USER, NOW)));
         when(walletRepository.findByUserId(1L)).thenReturn(

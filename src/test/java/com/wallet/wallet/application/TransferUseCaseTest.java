@@ -51,7 +51,7 @@ class TransferUseCaseTest {
     void setUp() {
         useCase = new TransferUseCase(walletRepository, ledgerEntryRepository, transferRepository,
                 userRepository, new NoOpNotificationService(), new FakeTransactionRunner(),
-                Clock.fixed(NOW, ZoneOffset.UTC), "EGP");
+                Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     private void givenWallets(long senderBalance, long recipientBalance) {

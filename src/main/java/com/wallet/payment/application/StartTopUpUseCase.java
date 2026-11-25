@@ -26,22 +26,19 @@ public class StartTopUpUseCase {
     private final PaymentGateway paymentGateway;
     private final TransactionRunner transactionRunner;
     private final Clock clock;
-    private final String defaultCurrency;
 
     public StartTopUpUseCase(TopUpRepository topUpRepository,
                              UserRepository userRepository,
                              WalletRepository walletRepository,
                              PaymentGateway paymentGateway,
                              TransactionRunner transactionRunner,
-                             Clock clock,
-                             String defaultCurrency) {
+                             Clock clock) {
         this.topUpRepository = topUpRepository;
         this.userRepository = userRepository;
         this.walletRepository = walletRepository;
         this.paymentGateway = paymentGateway;
         this.transactionRunner = transactionRunner;
         this.clock = clock;
-        this.defaultCurrency = defaultCurrency;
     }
 
     public StartTopUpResult execute(StartTopUpCommand command) {
@@ -52,8 +49,8 @@ public class StartTopUpUseCase {
         // Step 1: record the PENDING top-up so the webhook can match it later.
         TopUp saved = transactionRunner.inTransaction(() -> {
             Wallet wallet = walletRepository.findByUserId(command.userId())
-                    .orElseGet(() -> walletRepository.save(
-                            Wallet.openFor(command.userId(), defaultCurrency, now)));
+                    .orElseThrow(() -> new NotFoundException(
+                            "Wallet not found for user " + command.userId() + " (wallets open at registration)"));
             String merchantOrderId = "WTU-" + command.userId() + "-" + UUID.randomUUID();
             return topUpRepository.save(TopUp.pending(
                     command.userId(), command.amountMinor(), wallet.currency(), merchantOrderId, now));

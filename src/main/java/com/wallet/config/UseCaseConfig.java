@@ -42,10 +42,12 @@ public class UseCaseConfig {
     public RegisterUserUseCase registerUserUseCase(
             UserRepository userRepository, RefreshTokenRepository refreshTokenRepository,
             PasswordHasher passwordHasher, TokenHasher tokenHasher, TokenService tokenService,
-            TransactionRunner transactionRunner, Clock clock,
-            @Value("${app.jwt.refresh-expiration-days}") long refreshDays) {
+            WalletRepository walletRepository, TransactionRunner transactionRunner, Clock clock,
+            @Value("${app.jwt.refresh-expiration-days}") long refreshDays,
+            @Value("${app.wallet.default-currency:EGP}") String defaultCurrency) {
         return new RegisterUserUseCase(userRepository, refreshTokenRepository, passwordHasher,
-                tokenHasher, tokenService, transactionRunner, clock, Duration.ofDays(refreshDays));
+                tokenHasher, tokenService, walletRepository, transactionRunner, clock,
+                Duration.ofDays(refreshDays), defaultCurrency);
     }
 
     @Bean
@@ -77,19 +79,17 @@ public class UseCaseConfig {
 
     @Bean
     public GetMyWalletUseCase getMyWalletUseCase(
-            WalletRepository walletRepository, TransactionRunner transactionRunner, Clock clock,
-            @Value("${app.wallet.default-currency:EGP}") String defaultCurrency) {
-        return new GetMyWalletUseCase(walletRepository, transactionRunner, clock, defaultCurrency);
+            WalletRepository walletRepository, TransactionRunner transactionRunner) {
+        return new GetMyWalletUseCase(walletRepository, transactionRunner);
     }
 
     @Bean
     public TransferUseCase transferUseCase(
             WalletRepository walletRepository, LedgerEntryRepository ledgerEntryRepository,
             TransferRepository transferRepository, UserRepository userRepository,
-            NotificationService notificationService, TransactionRunner transactionRunner, Clock clock,
-            @Value("${app.wallet.default-currency:EGP}") String defaultCurrency) {
+            NotificationService notificationService, TransactionRunner transactionRunner, Clock clock) {
         return new TransferUseCase(walletRepository, ledgerEntryRepository, transferRepository,
-                userRepository, notificationService, transactionRunner, clock, defaultCurrency);
+                userRepository, notificationService, transactionRunner, clock);
     }
 
     @Bean
@@ -103,10 +103,9 @@ public class UseCaseConfig {
     public StartTopUpUseCase startTopUpUseCase(
             TopUpRepository topUpRepository, UserRepository userRepository,
             WalletRepository walletRepository, PaymentGateway paymentGateway,
-            TransactionRunner transactionRunner, Clock clock,
-            @Value("${app.wallet.default-currency:EGP}") String defaultCurrency) {
+            TransactionRunner transactionRunner, Clock clock) {
         return new StartTopUpUseCase(topUpRepository, userRepository, walletRepository,
-                paymentGateway, transactionRunner, clock, defaultCurrency);
+                paymentGateway, transactionRunner, clock);
     }
 
     @Bean

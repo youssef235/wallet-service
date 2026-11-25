@@ -39,7 +39,6 @@ public class TransferUseCase {
     private final NotificationService notificationService;
     private final TransactionRunner transactionRunner;
     private final Clock clock;
-    private final String defaultCurrency;
 
     public TransferUseCase(WalletRepository walletRepository,
                            LedgerEntryRepository ledgerEntryRepository,
@@ -47,8 +46,7 @@ public class TransferUseCase {
                            UserRepository userRepository,
                            NotificationService notificationService,
                            TransactionRunner transactionRunner,
-                           Clock clock,
-                           String defaultCurrency) {
+                           Clock clock) {
         this.walletRepository = walletRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.transferRepository = transferRepository;
@@ -56,7 +54,6 @@ public class TransferUseCase {
         this.notificationService = notificationService;
         this.transactionRunner = transactionRunner;
         this.clock = clock;
-        this.defaultCurrency = defaultCurrency;
     }
 
     public TransferResult execute(TransferCommand command) {
@@ -128,12 +125,8 @@ public class TransferUseCase {
                 ? Math.min(senderUserId, recipientUserId)
                 : Math.max(senderUserId, recipientUserId);
         return walletRepository.findByUserIdForUpdate(userIdToLock)
-                .orElseGet(() -> {
-                    // First activity for this user: open the wallet, then lock it.
-                    walletRepository.save(Wallet.openFor(userIdToLock, defaultCurrency, clock.instant()));
-                    return walletRepository.findByUserIdForUpdate(userIdToLock)
-                            .orElseThrow(() -> new NotFoundException("Wallet not found for user " + userIdToLock));
-                });
+                .orElseThrow(() -> new NotFoundException(
+                        "Wallet not found for user " + userIdToLock + " (wallets open at registration)"));
     }
 
     /** Replays the stored outcome of a request that already ran with this idempotency key. */
