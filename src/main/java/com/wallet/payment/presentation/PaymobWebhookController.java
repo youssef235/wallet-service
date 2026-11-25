@@ -1,6 +1,6 @@
 package com.wallet.payment.presentation;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.wallet.payment.application.HandlePaymobWebhookUseCase;
 import com.wallet.payment.application.PaymobTransactionCallback;
 import com.wallet.payment.application.WebhookProcessingResult;

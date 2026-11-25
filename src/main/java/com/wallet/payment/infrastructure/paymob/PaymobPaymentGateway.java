@@ -1,6 +1,6 @@
 package com.wallet.payment.infrastructure.paymob;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.wallet.payment.domain.PaymentGateway;
 import com.wallet.payment.domain.PaymentGatewayException;
 import java.util.HashMap;
