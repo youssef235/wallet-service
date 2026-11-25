@@ -36,7 +36,7 @@ public class SecurityConfig {
                         // Public: Paymob servers call it, authenticity comes from HMAC verification.
                         .requestMatchers("/api/webhooks/paymob").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
-                        .requestMatchers("/", "/index.html", "/favicon.ico", "/error").permitAll()
+                        .requestMatchers("/", "/index.html", "/favicon.ico", "/error", "/css/**", "/js/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(e -> e
