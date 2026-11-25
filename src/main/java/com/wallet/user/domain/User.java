@@ -47,9 +47,19 @@ public class User {
         }
     }
 
+    /**
+     * BCrypt only ever reads the first 72 BYTES of a password; a character
+     * count is the wrong unit for multi-byte scripts (e.g. Arabic). Enforce
+     * the byte limit explicitly so a long password fails with a clear 400
+     * instead of being silently truncated or blowing up in the hasher.
+     */
     public static void validateRawPassword(String rawPassword) {
         if (rawPassword == null || rawPassword.length() < MIN_PASSWORD_LENGTH) {
             throw new InvalidUserException("Password must be at least " + MIN_PASSWORD_LENGTH + " characters");
+        }
+        if (rawPassword.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) {
+            throw new InvalidUserException(
+                    "Password must be at most 72 bytes (BCrypt limit); with non-ASCII characters fewer than 72 characters may fit");
         }
     }
 
