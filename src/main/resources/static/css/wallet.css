@@ -466,6 +466,11 @@ main {
   padding: 1rem;
 }
 
+/* The hidden attribute must win over the display rule above. */
+.modal[hidden] {
+  display: none;
+}
+
 .modal-sheet {
   background: var(--surface);
   border: 1.5px solid var(--border-strong);
