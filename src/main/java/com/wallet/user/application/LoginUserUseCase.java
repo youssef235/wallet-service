@@ -12,6 +12,9 @@ import java.time.Instant;
 
 public class LoginUserUseCase {
 
+    /** Pre-computed BCrypt hash of a random password, used only to burn equal time. */
+    private static final String DUMMY_HASH = "$2a$10$lOMivm.j9amtjXzt3fO9VeKXHrJesDxS.FopOPRiI8aGvyP.wK4.u";
+
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordHasher passwordHasher;
@@ -41,8 +44,14 @@ public class LoginUserUseCase {
 
     public AuthResult execute(LoginUserCommand command) {
         return transactionRunner.inTransaction(() -> {
-            User user = userRepository.findByEmail(command.email().trim().toLowerCase())
-                    .orElseThrow(InvalidCredentialsException::new);
+            var found = userRepository.findByEmail(command.email().trim().toLowerCase());
+            if (found.isEmpty()) {
+                // Compare against a dummy hash so unknown-email logins take the same
+                // time as wrong-password logins and do not reveal registered emails.
+                passwordHasher.matches(command.rawPassword(), DUMMY_HASH);
+                throw new InvalidCredentialsException();
+            }
+            User user = found.get();
             if (!passwordHasher.matches(command.rawPassword(), user.passwordHash())) {
                 throw new InvalidCredentialsException();
             }

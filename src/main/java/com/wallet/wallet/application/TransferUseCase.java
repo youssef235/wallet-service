@@ -77,7 +77,7 @@ public class TransferUseCase {
         User sender = userRepository.findById(command.senderUserId())
                 .orElseThrow(() -> new NotFoundException("Sender not found"));
         User recipient = userRepository.findByEmail(command.recipientEmail().trim().toLowerCase())
-                .orElseThrow(() -> new NotFoundException("No user registered with email " + command.recipientEmail()));
+                .orElseThrow(() -> new NotFoundException("Recipient not found"));
         if (sender.id().equals(recipient.id())) {
             throw new SelfTransferException();
         }
@@ -139,7 +139,7 @@ public class TransferUseCase {
         Wallet senderWallet = walletRepository.findByUserId(command.senderUserId())
                 .orElseThrow(() -> new NotFoundException("Wallet not found for user " + command.senderUserId()));
         User recipient = userRepository.findByEmail(command.recipientEmail().trim().toLowerCase())
-                .orElseThrow(() -> new NotFoundException("No user registered with email " + command.recipientEmail()));
+                .orElseThrow(() -> new NotFoundException("Recipient not found"));
         Wallet recipientWallet = walletRepository.findByUserId(recipient.id())
                 .orElseThrow(() -> new ConflictException("Idempotency key reused with a different request"));
         if (!stored.toWalletId().equals(recipientWallet.id())) {
