@@ -69,6 +69,9 @@ public class SecurityConfig {
     }
 
     private static SecretKey secretKey(String secret) {
+        if (secret.startsWith("change-me") || secret.startsWith("REPLACE_ME")) {
+            throw new IllegalStateException("app.jwt.secret is set to a placeholder; configure a real JWT_SECRET");
+        }
         byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
         if (bytes.length < 32) {
             throw new IllegalStateException("app.jwt.secret must be at least 32 bytes");
