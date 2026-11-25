@@ -2,6 +2,7 @@ package com.wallet.config;
 
 import com.wallet.notification.application.NotificationService;
 import com.wallet.payment.application.ExpireStaleTopUpsUseCase;
+import com.wallet.payment.application.HandlePaymobReversalUseCase;
 import com.wallet.payment.application.HandlePaymobWebhookUseCase;
 import com.wallet.payment.application.ListMyTopUpsUseCase;
 import com.wallet.payment.application.StartTopUpUseCase;
@@ -115,6 +116,14 @@ public class UseCaseConfig {
             NotificationService notificationService, TransactionRunner transactionRunner, Clock clock) {
         return new HandlePaymobWebhookUseCase(topUpRepository, walletRepository, ledgerEntryRepository,
                 userRepository, notificationService, transactionRunner, clock);
+    }
+
+    @Bean
+    public HandlePaymobReversalUseCase handlePaymobReversalUseCase(
+            TopUpRepository topUpRepository, WalletRepository walletRepository,
+            LedgerEntryRepository ledgerEntryRepository, TransactionRunner transactionRunner, Clock clock) {
+        return new HandlePaymobReversalUseCase(topUpRepository, walletRepository,
+                ledgerEntryRepository, transactionRunner, clock);
     }
 
     @Bean

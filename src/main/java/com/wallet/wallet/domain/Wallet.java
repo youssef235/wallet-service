@@ -38,6 +38,19 @@ public class Wallet {
         return new Wallet(id, userId, Math.addExact(balanceMinor, amountMinor), currency, createdAt);
     }
 
+    /**
+     * Claws money back after a refund/chargeback. Unlike debit(), this is allowed
+     * to take the balance negative: the payment provider took the money back, so
+     * the user owes it until they top up again. Callers must log an alert when
+     * the result goes negative.
+     */
+    public Wallet applyReversal(long amountMinor) {
+        if (amountMinor <= 0) {
+            throw new IllegalArgumentException("Reversal amount must be positive");
+        }
+        return new Wallet(id, userId, balanceMinor - amountMinor, currency, createdAt);
+    }
+
     public Wallet debit(long amountMinor) {
         requirePositive(amountMinor);
         if (balanceMinor < amountMinor) {

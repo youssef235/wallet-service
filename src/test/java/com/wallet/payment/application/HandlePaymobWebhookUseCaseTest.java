@@ -36,7 +36,7 @@ class HandlePaymobWebhookUseCaseTest {
     private HandlePaymobWebhookUseCase useCase;
 
     private final TopUp pendingTopUp = TopUp.reconstitute(5L, 1L, 10_000, "EGP",
-            com.wallet.payment.domain.TopUpStatus.PENDING, "WTU-1-abc", 555L, null, null, NOW);
+            com.wallet.payment.domain.TopUpStatus.PENDING, "WTU-1-abc", 555L, null, null, null, NOW);
 
     @BeforeEach
     void setUp() {

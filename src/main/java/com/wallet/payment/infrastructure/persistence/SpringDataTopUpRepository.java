@@ -20,6 +20,10 @@ interface SpringDataTopUpRepository extends JpaRepository<TopUpJpaEntity, Long> 
 
     boolean existsByPaymobTransactionId(Long paymobTransactionId);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM TopUpJpaEntity t WHERE t.paymobTransactionId = :paymobTransactionId")
+    Optional<TopUpJpaEntity> findByPaymobTransactionIdForUpdate(@Param("paymobTransactionId") Long paymobTransactionId);
+
     List<TopUpJpaEntity> findByUserIdOrderByCreatedAtDesc(Long userId);
 
     List<TopUpJpaEntity> findByStatusAndCreatedAtBefore(TopUpStatus status, Instant cutoff);

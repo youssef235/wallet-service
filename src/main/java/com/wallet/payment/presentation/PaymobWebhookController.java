@@ -1,7 +1,9 @@
 package com.wallet.payment.presentation;
 
 import tools.jackson.databind.JsonNode;
+import com.wallet.payment.application.HandlePaymobReversalUseCase;
 import com.wallet.payment.application.HandlePaymobWebhookUseCase;
+import com.wallet.payment.application.ReversalProcessingResult;
 import com.wallet.payment.application.PaymobTransactionCallback;
 import com.wallet.payment.application.WebhookProcessingResult;
 import com.wallet.payment.infrastructure.paymob.PaymobHmacVerifier;
@@ -29,11 +31,14 @@ class PaymobWebhookController {
 
     private final PaymobHmacVerifier hmacVerifier;
     private final HandlePaymobWebhookUseCase handlePaymobWebhookUseCase;
+    private final HandlePaymobReversalUseCase handlePaymobReversalUseCase;
 
     PaymobWebhookController(PaymobHmacVerifier hmacVerifier,
-                            HandlePaymobWebhookUseCase handlePaymobWebhookUseCase) {
+                            HandlePaymobWebhookUseCase handlePaymobWebhookUseCase,
+                            HandlePaymobReversalUseCase handlePaymobReversalUseCase) {
         this.hmacVerifier = hmacVerifier;
         this.handlePaymobWebhookUseCase = handlePaymobWebhookUseCase;
+        this.handlePaymobReversalUseCase = handlePaymobReversalUseCase;
     }
 
     @PostMapping
@@ -50,6 +55,23 @@ class PaymobWebhookController {
         if (merchantOrderId == null || !obj.hasNonNull("id")) {
             log.warn("Rejected Paymob callback: missing transaction id or merchant order id");
             return ResponseEntity.badRequest().build();
+        }
+
+        boolean isRefunded = obj.path("is_refunded").asBoolean(false);
+        boolean isVoided = obj.path("is_voided").asBoolean(false);
+        if (isRefunded || isVoided) {
+            // A reversal: the provider is taking a settled payment back. Paymob sends a
+            // new transaction id for the refund, linked to the original via
+            // parent_transaction; a void arrives on the original transaction itself.
+            long reversalTransactionId = obj.get("id").asLong();
+            long originalTransactionId = obj.path("parent_transaction").asLong(reversalTransactionId);
+            ReversalProcessingResult reversal = handlePaymobReversalUseCase.execute(
+                    reversalTransactionId, originalTransactionId, obj.path("amount_cents").asLong());
+            if (reversal == ReversalProcessingResult.UNKNOWN_TRANSACTION) {
+                log.error("Paymob reversal {} referenced unknown original transaction {}",
+                        reversalTransactionId, originalTransactionId);
+            }
+            return ResponseEntity.ok().build();
         }
 
         var callback = new PaymobTransactionCallback(

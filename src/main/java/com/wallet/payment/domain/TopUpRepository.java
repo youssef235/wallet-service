@@ -15,6 +15,9 @@ public interface TopUpRepository {
 
     boolean existsByPaymobTransactionId(Long paymobTransactionId);
 
+    /** SELECT ... FOR UPDATE: serializes a reversal with anything else touching this top-up. */
+    Optional<TopUp> findByPaymobTransactionIdForUpdate(Long paymobTransactionId);
+
     List<TopUp> findByUserId(Long userId);
 
     List<TopUp> findPendingOlderThan(Instant cutoff);

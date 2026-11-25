@@ -49,6 +49,9 @@ class TopUpJpaEntity {
     @Column(name = "journal_id", length = 36)
     private String journalId;
 
+    @Column(name = "reversal_transaction_id", unique = true)
+    private Long reversalTransactionId;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -57,7 +60,7 @@ class TopUpJpaEntity {
 
     TopUpJpaEntity(Long id, Long userId, long amountMinor, String currency, TopUpStatus status,
                    String merchantOrderId, Long paymobOrderId, Long paymobTransactionId,
-                   String journalId, Instant createdAt) {
+                   String journalId, Long reversalTransactionId, Instant createdAt) {
         this.id = id;
         this.userId = userId;
         this.amountMinor = amountMinor;
@@ -67,6 +70,7 @@ class TopUpJpaEntity {
         this.paymobOrderId = paymobOrderId;
         this.paymobTransactionId = paymobTransactionId;
         this.journalId = journalId;
+        this.reversalTransactionId = reversalTransactionId;
         this.createdAt = createdAt;
     }
 
@@ -79,5 +83,6 @@ class TopUpJpaEntity {
     Long getPaymobOrderId() { return paymobOrderId; }
     Long getPaymobTransactionId() { return paymobTransactionId; }
     String getJournalId() { return journalId; }
+    Long getReversalTransactionId() { return reversalTransactionId; }
     Instant getCreatedAt() { return createdAt; }
 }
