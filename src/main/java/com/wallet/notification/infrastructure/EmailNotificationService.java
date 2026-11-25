@@ -102,6 +102,6 @@ class EmailNotificationService implements NotificationService {
     }
 
     private static String format(long amountMinor) {
-        return String.format("%.2f", amountMinor / 100.0);
+        return java.math.BigDecimal.valueOf(amountMinor, 2).toPlainString();
     }
 }

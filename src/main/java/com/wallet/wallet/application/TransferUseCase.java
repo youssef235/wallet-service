@@ -103,7 +103,9 @@ public class TransferUseCase {
         walletRepository.save(recipientAfter);
 
         String journalId = UUID.randomUUID().toString();
-        String description = "P2P transfer from " + sender.email() + " to " + recipient.email();
+        // Neutral wording: the ledger is immutable, so no personal data (emails)
+        // is stored in it. The counterparty is recoverable via the transfers table.
+        String description = "P2P transfer";
         LedgerJournal journal = new LedgerJournal(journalId, java.util.List.of(
                 LedgerEntry.debit(journalId, LedgerAccount.ofWallet(senderWallet.id()), command.amountMinor(), description, now),
                 LedgerEntry.credit(journalId, LedgerAccount.ofWallet(recipientWallet.id()), command.amountMinor(), description, now)));

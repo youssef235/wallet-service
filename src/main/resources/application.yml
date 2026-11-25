@@ -43,5 +43,8 @@ app:
     expire-topups-cron: ${EXPIRE_TOPUPS_CRON:0 */30 * * * *}
 
 springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
   swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}
     path: /swagger-ui.html
