@@ -3,6 +3,7 @@ package com.wallet;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.wallet.support.NoOpNotificationService;
+import com.wallet.support.TestcontainersConfiguration;
 import com.wallet.user.domain.User;
 import com.wallet.user.domain.UserRepository;
 import com.wallet.wallet.application.TransferCommand;
@@ -23,6 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -34,6 +36,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @SpringBootTest
 @ActiveProfiles("test")
+@Import(TestcontainersConfiguration.class)
 class TransferConcurrencyIntegrationTest {
 
     @TestConfiguration
