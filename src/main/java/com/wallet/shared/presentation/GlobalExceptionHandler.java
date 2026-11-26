@@ -4,10 +4,12 @@ import com.wallet.shared.domain.ConflictException;
 import com.wallet.shared.domain.DomainException;
 import com.wallet.shared.domain.ForbiddenOperationException;
 import com.wallet.shared.domain.NotFoundException;
+import com.wallet.shared.domain.TooManyRequestsException;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,9 +17,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -84,6 +88,32 @@ public class GlobalExceptionHandler {
     ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException ex) {
         log.warn("Data integrity violation: {}", ex.getMessage());
         return build(HttpStatus.CONFLICT, "CONFLICT", "Request conflicts with existing data");
+    }
+
+    @ExceptionHandler(TooManyRequestsException.class)
+    ResponseEntity<ErrorResponse> handleTooManyRequests(TooManyRequestsException ex) {
+        return build(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMITED", ex.getMessage());
+    }
+
+    /** A path/query parameter that failed to convert, e.g. ?limit=abc. */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        return build(HttpStatus.BAD_REQUEST, "INVALID_PARAMETER",
+                "Invalid value for parameter '" + ex.getName() + "'");
+    }
+
+    /** A required @RequestParam that was not sent at all. */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    ResponseEntity<ErrorResponse> handleMissingParam(MissingServletRequestParameterException ex) {
+        return build(HttpStatus.BAD_REQUEST, "MISSING_PARAMETER",
+                "Missing required parameter '" + ex.getParameterName() + "'");
+    }
+
+    /** A Content-Type the endpoint does not consume. */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    ResponseEntity<ErrorResponse> handleUnsupportedMediaType(HttpMediaTypeNotSupportedException ex) {
+        return build(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "UNSUPPORTED_MEDIA_TYPE",
+                "Unsupported content type");
     }
 
     @ExceptionHandler(ArithmeticException.class)
