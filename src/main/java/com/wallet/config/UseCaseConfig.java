@@ -10,6 +10,7 @@ import com.wallet.payment.domain.PaymentGateway;
 import com.wallet.payment.domain.TopUpRepository;
 import com.wallet.recon.application.ReconcileWalletsUseCase;
 import com.wallet.shared.application.TransactionRunner;
+import com.wallet.user.application.LoginAttemptGuard;
 import com.wallet.user.application.LoginUserUseCase;
 import com.wallet.user.application.LogoutUseCase;
 import com.wallet.user.application.PasswordHasher;
@@ -54,10 +55,16 @@ public class UseCaseConfig {
     public LoginUserUseCase loginUserUseCase(
             UserRepository userRepository, RefreshTokenRepository refreshTokenRepository,
             PasswordHasher passwordHasher, TokenHasher tokenHasher, TokenService tokenService,
-            TransactionRunner transactionRunner, Clock clock,
+            TransactionRunner transactionRunner, LoginAttemptGuard loginAttemptGuard, Clock clock,
             @Value("${app.jwt.refresh-expiration-days}") long refreshDays) {
         return new LoginUserUseCase(userRepository, refreshTokenRepository, passwordHasher,
-                tokenHasher, tokenService, transactionRunner, clock, Duration.ofDays(refreshDays));
+                tokenHasher, tokenService, transactionRunner, loginAttemptGuard,
+                clock, Duration.ofDays(refreshDays));
+    }
+
+    @Bean
+    public LoginAttemptGuard loginAttemptGuard(Clock clock) {
+        return new LoginAttemptGuard(clock);
     }
 
     @Bean

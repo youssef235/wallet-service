@@ -25,6 +25,7 @@ public class LoginUserUseCase {
     private final TokenHasher tokenHasher;
     private final TokenService tokenService;
     private final TransactionRunner transactionRunner;
+    private final LoginAttemptGuard loginAttemptGuard;
     private final Clock clock;
     private final Duration refreshTokenLifetime;
 
@@ -34,6 +35,7 @@ public class LoginUserUseCase {
                             TokenHasher tokenHasher,
                             TokenService tokenService,
                             TransactionRunner transactionRunner,
+                            LoginAttemptGuard loginAttemptGuard,
                             Clock clock,
                             Duration refreshTokenLifetime) {
         this.userRepository = userRepository;
@@ -42,13 +44,24 @@ public class LoginUserUseCase {
         this.tokenHasher = tokenHasher;
         this.tokenService = tokenService;
         this.transactionRunner = transactionRunner;
+        this.loginAttemptGuard = loginAttemptGuard;
         this.clock = clock;
         this.refreshTokenLifetime = refreshTokenLifetime;
     }
 
     public AuthResult execute(LoginUserCommand command) {
-        return transactionRunner.inTransaction(() -> {
-            var found = userRepository.findByEmail(command.email().trim().toLowerCase());
+        String email = command.email().trim().toLowerCase();
+        loginAttemptGuard.checkAllowed(email);
+        try {
+            return transactionRunner.inTransaction(() -> doLogin(command, email));
+        } catch (InvalidCredentialsException badCredentials) {
+            loginAttemptGuard.onFailure(email);
+            throw badCredentials;
+        }
+    }
+
+    private AuthResult doLogin(LoginUserCommand command, String email) {
+            var found = userRepository.findByEmail(email);
             if (found.isEmpty()) {
                 // Compare against a dummy hash so unknown-email logins take the same
                 // time as wrong-password logins and do not reveal registered emails.
@@ -59,6 +72,7 @@ public class LoginUserUseCase {
             if (!passwordHasher.matches(command.rawPassword(), user.passwordHash())) {
                 throw new InvalidCredentialsException();
             }
+            loginAttemptGuard.onSuccess(email);
             Instant now = clock.instant();
             IssuedToken access = tokenService.generate(user.id(), user.email(), user.role());
             String refreshValue = RefreshToken.newTokenValue();
@@ -67,6 +81,5 @@ public class LoginUserUseCase {
                     RefreshToken.issue(user.id(), tokenHasher.hash(refreshValue), refreshExpiresAt, now));
             return new AuthResult(access.value(), access.expiresAt(), refreshValue, refreshExpiresAt,
                     UserResult.from(user));
-        });
     }
 }
