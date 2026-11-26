@@ -10,11 +10,17 @@ import java.util.concurrent.ConcurrentHashMap;
  * same email, further attempts are refused for the rest of the window. Success
  * clears the slate. In-memory, like the rate limiting filter: right for a
  * single instance.
+ *
+ * The map is bounded: expired entries are swept when it grows, and once it is
+ * still full, emails that are not tracked yet are not added (the per-IP rate
+ * limit remains the brake for those). Known trade-off: anyone can lock an
+ * account's login for one window by sending wrong passwords for it.
  */
 public class LoginAttemptGuard {
 
     private static final int MAX_FAILURES = 5;
     private static final long WINDOW_MS = 10 * 60 * 1000;
+    private static final int MAX_TRACKED_EMAILS = 50_000;
 
     private final Map<String, Failures> failuresByEmail = new ConcurrentHashMap<>();
     private final Clock clock;
@@ -32,8 +38,14 @@ public class LoginAttemptGuard {
 
     public void onFailure(String email) {
         long now = clock.millis();
+        if (failuresByEmail.size() >= MAX_TRACKED_EMAILS) {
+            failuresByEmail.values().removeIf(f -> now - f.firstFailureMs > WINDOW_MS);
+            if (failuresByEmail.size() >= MAX_TRACKED_EMAILS && !failuresByEmail.containsKey(email)) {
+                return;
+            }
+        }
         failuresByEmail.compute(email, (k, existing) ->
-                existing == null || !withinWindow(existing) ? new Failures(1, now)
+                existing == null || now - existing.firstFailureMs > WINDOW_MS ? new Failures(1, now)
                         : new Failures(existing.count + 1, existing.firstFailureMs));
     }
 
