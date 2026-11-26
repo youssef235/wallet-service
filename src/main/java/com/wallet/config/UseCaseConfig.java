@@ -8,6 +8,7 @@ import com.wallet.payment.application.ListMyTopUpsUseCase;
 import com.wallet.payment.application.StartTopUpUseCase;
 import com.wallet.payment.domain.PaymentGateway;
 import com.wallet.payment.domain.TopUpRepository;
+import com.wallet.payment.domain.TopUpReversalRepository;
 import com.wallet.recon.application.ReconcileWalletsUseCase;
 import com.wallet.shared.application.TransactionRunner;
 import com.wallet.user.application.LoginAttemptGuard;
@@ -126,9 +127,10 @@ public class UseCaseConfig {
 
     @Bean
     public HandlePaymobReversalUseCase handlePaymobReversalUseCase(
-            TopUpRepository topUpRepository, WalletRepository walletRepository,
+            TopUpRepository topUpRepository, TopUpReversalRepository topUpReversalRepository,
+            WalletRepository walletRepository,
             LedgerEntryRepository ledgerEntryRepository, TransactionRunner transactionRunner, Clock clock) {
-        return new HandlePaymobReversalUseCase(topUpRepository, walletRepository,
+        return new HandlePaymobReversalUseCase(topUpRepository, topUpReversalRepository, walletRepository,
                 ledgerEntryRepository, transactionRunner, clock);
     }
 

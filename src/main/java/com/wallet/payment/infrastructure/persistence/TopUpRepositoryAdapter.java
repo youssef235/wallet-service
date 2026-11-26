@@ -22,7 +22,7 @@ class TopUpRepositoryAdapter implements TopUpRepository {
         TopUpJpaEntity saved = springData.save(new TopUpJpaEntity(topUp.id(), topUp.userId(),
                 topUp.amountMinor(), topUp.currency(), topUp.status(), topUp.merchantOrderId(),
                 topUp.paymobOrderId(), topUp.paymobTransactionId(), topUp.journalId(),
-                topUp.reversalTransactionId(), topUp.createdAt()));
+                topUp.createdAt()));
         return toDomain(saved);
     }
 
@@ -47,6 +47,11 @@ class TopUpRepositoryAdapter implements TopUpRepository {
     }
 
     @Override
+    public Optional<TopUp> findByPaymobOrderIdForUpdate(Long paymobOrderId) {
+        return springData.findByPaymobOrderIdForUpdate(paymobOrderId).map(this::toDomain);
+    }
+
+    @Override
     public List<TopUp> findByUserId(Long userId) {
         return springData.findByUserIdOrderByCreatedAtDesc(userId).stream().map(this::toDomain).toList();
     }
@@ -60,6 +65,6 @@ class TopUpRepositoryAdapter implements TopUpRepository {
     private TopUp toDomain(TopUpJpaEntity e) {
         return TopUp.reconstitute(e.getId(), e.getUserId(), e.getAmountMinor(), e.getCurrency(),
                 e.getStatus(), e.getMerchantOrderId(), e.getPaymobOrderId(), e.getPaymobTransactionId(),
-                e.getJournalId(), e.getReversalTransactionId(), e.getCreatedAt());
+                e.getJournalId(), e.getCreatedAt());
     }
 }

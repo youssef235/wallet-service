@@ -51,7 +51,7 @@ class StartTopUpUseCaseTest {
         when(topUpRepository.save(any(TopUp.class))).thenAnswer(inv -> {
             TopUp t = inv.getArgument(0);
             return TopUp.reconstitute(99L, t.userId(), t.amountMinor(), t.currency(), t.status(),
-                    t.merchantOrderId(), t.paymobOrderId(), t.paymobTransactionId(), t.journalId(), null, t.createdAt());
+                    t.merchantOrderId(), t.paymobOrderId(), t.paymobTransactionId(), t.journalId(), t.createdAt());
         });
     }
 

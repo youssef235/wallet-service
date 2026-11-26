@@ -18,12 +18,11 @@ public class TopUp {
     private final Long paymobOrderId;
     private final Long paymobTransactionId;
     private final String journalId;
-    private final Long reversalTransactionId;
     private final Instant createdAt;
 
     private TopUp(Long id, Long userId, long amountMinor, String currency, TopUpStatus status,
                   String merchantOrderId, Long paymobOrderId, Long paymobTransactionId,
-                  String journalId, Long reversalTransactionId, Instant createdAt) {
+                  String journalId, Instant createdAt) {
         this.id = id;
         this.userId = userId;
         this.amountMinor = amountMinor;
@@ -33,7 +32,6 @@ public class TopUp {
         this.paymobOrderId = paymobOrderId;
         this.paymobTransactionId = paymobTransactionId;
         this.journalId = journalId;
-        this.reversalTransactionId = reversalTransactionId;
         this.createdAt = createdAt;
     }
 
@@ -43,20 +41,20 @@ public class TopUp {
             throw new InvalidTopUpException("Top-up amount must be positive");
         }
         return new TopUp(null, userId, amountMinor, currency, TopUpStatus.PENDING,
-                merchantOrderId, null, null, null, null, now);
+                merchantOrderId, null, null, null, now);
     }
 
     public static TopUp reconstitute(Long id, Long userId, long amountMinor, String currency,
                                      TopUpStatus status, String merchantOrderId, Long paymobOrderId,
                                      Long paymobTransactionId, String journalId,
-                                     Long reversalTransactionId, Instant createdAt) {
+                                     Instant createdAt) {
         return new TopUp(id, userId, amountMinor, currency, status, merchantOrderId, paymobOrderId,
-                paymobTransactionId, journalId, reversalTransactionId, createdAt);
+                paymobTransactionId, journalId, createdAt);
     }
 
     public TopUp withPaymobOrder(Long paymobOrderId) {
         return new TopUp(id, userId, amountMinor, currency, status, merchantOrderId,
-                paymobOrderId, paymobTransactionId, journalId, reversalTransactionId, createdAt);
+                paymobOrderId, paymobTransactionId, journalId, createdAt);
     }
 
     public TopUp markSucceeded(Long paymobTransactionId, String journalId) {
@@ -64,7 +62,7 @@ public class TopUp {
             throw new InvalidTopUpException("Only a pending top-up can succeed, current: " + status);
         }
         return new TopUp(id, userId, amountMinor, currency, TopUpStatus.SUCCESS,
-                merchantOrderId, paymobOrderId, paymobTransactionId, journalId, reversalTransactionId, createdAt);
+                merchantOrderId, paymobOrderId, paymobTransactionId, journalId, createdAt);
     }
 
     public TopUp markFailed() {
@@ -72,7 +70,7 @@ public class TopUp {
             throw new InvalidTopUpException("Only a pending top-up can fail, current: " + status);
         }
         return new TopUp(id, userId, amountMinor, currency, TopUpStatus.FAILED,
-                merchantOrderId, paymobOrderId, paymobTransactionId, journalId, reversalTransactionId, createdAt);
+                merchantOrderId, paymobOrderId, paymobTransactionId, journalId, createdAt);
     }
 
     public TopUp markNeedsReview(Long paymobTransactionId) {
@@ -80,16 +78,16 @@ public class TopUp {
             throw new InvalidTopUpException("Only a pending top-up can need review, current: " + status);
         }
         return new TopUp(id, userId, amountMinor, currency, TopUpStatus.NEEDS_REVIEW,
-                merchantOrderId, paymobOrderId, paymobTransactionId, journalId, reversalTransactionId, createdAt);
+                merchantOrderId, paymobOrderId, paymobTransactionId, journalId, createdAt);
     }
 
-    public TopUp markRefunded(Long reversalTransactionId) {
+    /** Fully refunded: every pound came back. Partial reversals leave the status SUCCESS. */
+    public TopUp markRefunded() {
         if (status != TopUpStatus.SUCCESS) {
             throw new InvalidTopUpException("Only a successful top-up can be refunded, current: " + status);
         }
         return new TopUp(id, userId, amountMinor, currency, TopUpStatus.REFUNDED,
-                merchantOrderId, paymobOrderId, paymobTransactionId, journalId,
-                reversalTransactionId, createdAt);
+                merchantOrderId, paymobOrderId, paymobTransactionId, journalId, createdAt);
     }
 
     public TopUp markExpired() {
@@ -97,7 +95,7 @@ public class TopUp {
             throw new InvalidTopUpException("Only a pending top-up can expire, current: " + status);
         }
         return new TopUp(id, userId, amountMinor, currency, TopUpStatus.EXPIRED,
-                merchantOrderId, paymobOrderId, paymobTransactionId, journalId, reversalTransactionId, createdAt);
+                merchantOrderId, paymobOrderId, paymobTransactionId, journalId, createdAt);
     }
 
     public Long id() { return id; }
@@ -109,6 +107,5 @@ public class TopUp {
     public Long paymobOrderId() { return paymobOrderId; }
     public Long paymobTransactionId() { return paymobTransactionId; }
     public String journalId() { return journalId; }
-    public Long reversalTransactionId() { return reversalTransactionId; }
     public Instant createdAt() { return createdAt; }
 }

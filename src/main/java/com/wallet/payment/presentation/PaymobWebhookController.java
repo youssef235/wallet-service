@@ -63,10 +63,15 @@ class PaymobWebhookController {
             // A reversal: the provider is taking a settled payment back. Paymob sends a
             // new transaction id for the refund, linked to the original via
             // parent_transaction; a void arrives on the original transaction itself.
+            // We bind by order.id, which the HMAC covers; parent_transaction is only
+            // a fallback because it is not signed.
             long reversalTransactionId = obj.get("id").asLong();
+            Long paymobOrderId = obj.path("order").hasNonNull("id")
+                    ? obj.path("order").get("id").asLong() : null;
             long originalTransactionId = obj.path("parent_transaction").asLong(reversalTransactionId);
             ReversalProcessingResult reversal = handlePaymobReversalUseCase.execute(
-                    reversalTransactionId, originalTransactionId, obj.path("amount_cents").asLong());
+                    reversalTransactionId, paymobOrderId, originalTransactionId,
+                    obj.path("amount_cents").asLong());
             if (reversal == ReversalProcessingResult.UNKNOWN_TRANSACTION) {
                 log.error("Paymob reversal {} referenced unknown original transaction {}",
                         reversalTransactionId, originalTransactionId);
