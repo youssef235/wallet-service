@@ -6,8 +6,10 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 
@@ -17,6 +19,12 @@ import org.flywaydb.core.api.migration.Context;
  * on (from_wallet_id, idempotency_key). Written in Java because the generated
  * name of the old constraint differs between PostgreSQL and H2 (tests), so we
  * look it up through JDBC metadata instead of hardcoding it.
+ *
+ * Two PostgreSQL-specific traps, both verified against a real Postgres:
+ * - the same constraint name arrives from both lookup sources, so candidates
+ *   must be deduplicated (a Set), and
+ * - a failed statement aborts the whole transaction, so try/catch around a
+ *   wrong candidate cannot work; every drop uses DROP CONSTRAINT IF EXISTS.
  */
 public class V4__transfers_idempotency_per_wallet extends BaseJavaMigration {
 
@@ -38,7 +46,7 @@ public class V4__transfers_idempotency_per_wallet extends BaseJavaMigration {
             }
         }
 
-        List<String> candidates = new ArrayList<>();
+        Set<String> candidates = new LinkedHashSet<>();
         for (var entry : uniqueIndexes.entrySet()) {
             if (entry.getValue().equals(List.of("idempotency_key"))) {
                 candidates.add(entry.getKey()); // PostgreSQL: constraint name == index name
@@ -56,11 +64,9 @@ public class V4__transfers_idempotency_per_wallet extends BaseJavaMigration {
 
         try (Statement st = connection.createStatement()) {
             for (String name : candidates) {
-                try {
-                    st.execute("ALTER TABLE transfers DROP CONSTRAINT " + name);
-                } catch (Exception ignored) {
-                    // Wrong candidate name for this dialect; try the next one.
-                }
+                // IF EXISTS, never try/catch: on PostgreSQL a failed statement
+                // aborts the transaction and every later statement is rejected.
+                st.execute("ALTER TABLE transfers DROP CONSTRAINT IF EXISTS " + name);
             }
             st.execute("ALTER TABLE transfers ADD CONSTRAINT uq_transfer_idem"
                     + " UNIQUE (from_wallet_id, idempotency_key)");
