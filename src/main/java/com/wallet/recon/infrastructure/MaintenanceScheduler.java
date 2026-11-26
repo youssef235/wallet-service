@@ -3,6 +3,7 @@ package com.wallet.recon.infrastructure;
 import com.wallet.notification.application.NotificationService;
 import com.wallet.payment.application.ExpireStaleTopUpsUseCase;
 import com.wallet.recon.application.ReconcileWalletsUseCase;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -10,10 +11,11 @@ import org.springframework.stereotype.Component;
 
 /**
  * Nightly housekeeping: re-verify every wallet against the ledger and expire
- * top-ups that were started but never paid.
+ * top-ups that were started but never paid. Each job holds a ShedLock so that
+ * with several app instances only one of them runs it.
  */
 @Component
-class MaintenanceScheduler {
+public class MaintenanceScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(MaintenanceScheduler.class);
 
@@ -30,7 +32,8 @@ class MaintenanceScheduler {
     }
 
     @Scheduled(cron = "${app.maintenance.reconcile-cron:0 0 3 * * *}")
-    void reconcile() {
+    @SchedulerLock(name = "wallet-reconcile", lockAtMostFor = "PT30M", lockAtLeastFor = "PT1M")
+    public void reconcile() {
         var report = reconcileWalletsUseCase.execute();
         if (report.clean()) {
             log.info("Reconciliation OK: wallets match the ledger and the ledger is balanced");
@@ -45,7 +48,8 @@ class MaintenanceScheduler {
     }
 
     @Scheduled(cron = "${app.maintenance.expire-topups-cron:0 */30 * * * *}")
-    void expireStaleTopUps() {
+    @SchedulerLock(name = "wallet-expire-topups", lockAtMostFor = "PT10M", lockAtLeastFor = "PT20S")
+    public void expireStaleTopUps() {
         int expired = expireStaleTopUpsUseCase.execute();
         if (expired > 0) {
             log.info("Expired {} stale pending top-up(s)", expired);
