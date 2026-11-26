@@ -17,4 +17,8 @@ public class NoOpNotificationService implements NotificationService {
     public void sendTransferReceived(String toEmail, String fullName, long amountMinor, String currency,
                                      String senderName, long balanceAfterMinor) {
     }
+
+    @Override
+    public void sendOpsAlert(String subject, String text) {
+    }
 }

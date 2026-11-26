@@ -6,6 +6,7 @@ import com.wallet.shared.domain.ConflictException;
 import com.wallet.shared.domain.NotFoundException;
 import com.wallet.user.domain.User;
 import com.wallet.user.domain.UserRepository;
+import com.wallet.wallet.domain.InvalidTransferException;
 import com.wallet.wallet.domain.LedgerAccount;
 import com.wallet.wallet.domain.LedgerEntry;
 import com.wallet.wallet.domain.LedgerEntryRepository;
@@ -76,8 +77,10 @@ public class TransferUseCase {
     private TransferResult doTransfer(TransferCommand command, Instant now) {
         User sender = userRepository.findById(command.senderUserId())
                 .orElseThrow(() -> new NotFoundException("Sender not found"));
+        // Generic message on purpose: a distinct "recipient not found" answer would
+        // let anyone probe which emails hold a wallet.
         User recipient = userRepository.findByEmail(command.recipientEmail().trim().toLowerCase())
-                .orElseThrow(() -> new NotFoundException("Recipient not found"));
+                .orElseThrow(() -> new InvalidTransferException("Transfer could not be completed"));
         if (sender.id().equals(recipient.id())) {
             throw new SelfTransferException();
         }

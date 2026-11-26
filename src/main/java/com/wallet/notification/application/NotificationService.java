@@ -13,4 +13,7 @@ public interface NotificationService {
 
     void sendTransferReceived(String toEmail, String fullName, long amountMinor, String currency,
                               String senderName, long balanceAfterMinor);
+
+    /** Operational alert to the service owner (e.g. reconciliation drift). */
+    void sendOpsAlert(String subject, String text);
 }

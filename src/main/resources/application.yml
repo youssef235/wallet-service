@@ -38,6 +38,7 @@ app:
   mail:
     enabled: ${MAIL_ENABLED:false}
     from: ${MAIL_FROM:wallet-service@localhost}
+    ops-alert-to: ${OPS_ALERT_EMAIL:}
   maintenance:
     reconcile-cron: ${RECONCILE_CRON:0 0 3 * * *}
     expire-topups-cron: ${EXPIRE_TOPUPS_CRON:0 */30 * * * *}

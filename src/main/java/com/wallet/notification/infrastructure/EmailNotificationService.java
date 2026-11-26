@@ -26,6 +26,7 @@ class EmailNotificationService implements NotificationService {
     private final JavaMailSender mailSender;
     private final boolean enabled;
     private final String from;
+    private final String opsAlertTo;
     private final ExecutorService mailExecutor = Executors.newSingleThreadExecutor(runnable -> {
         Thread thread = new Thread(runnable, "mail-sender");
         thread.setDaemon(true);
@@ -34,10 +35,21 @@ class EmailNotificationService implements NotificationService {
 
     EmailNotificationService(JavaMailSender mailSender,
                              @Value("${app.mail.enabled:false}") boolean enabled,
-                             @Value("${app.mail.from:wallet-service@localhost}") String from) {
+                             @Value("${app.mail.from:wallet-service@localhost}") String from,
+                             @Value("${app.mail.ops-alert-to:}") String opsAlertTo) {
         this.mailSender = mailSender;
         this.enabled = enabled;
         this.from = from;
+        this.opsAlertTo = opsAlertTo;
+    }
+
+    @Override
+    public void sendOpsAlert(String subject, String text) {
+        if (opsAlertTo == null || opsAlertTo.isBlank()) {
+            log.error("OPS ALERT (no ops-alert-to configured): {} - {}", subject, text);
+            return;
+        }
+        send(opsAlertTo, "[wallet-service] " + subject, text);
     }
 
     @Override

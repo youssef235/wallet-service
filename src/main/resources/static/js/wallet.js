@@ -231,6 +231,7 @@
             '<div class="section-title"><h2>سجل الحركات</h2>' +
             '<button class="btn btn-quiet btn-sm" id="tx-refresh" type="button">تحديث</button></div>' +
             '<ul class="tx-list" id="tx-list"><div class="empty">جارِ التحميل…</div></ul>' +
+            '<button class="btn btn-quiet btn-sm" id="tx-more" type="button" hidden style="width:100%;margin-block-start:0.7rem">عرض المزيد</button>' +
           "</section>" +
         "</div>" +
       "</div>"
@@ -247,7 +248,10 @@
     });
 
     view.querySelector("#refresh-btn").onclick = loadBalance;
-    view.querySelector("#tx-refresh").onclick = loadTransactions;
+    view.querySelector("#tx-refresh").onclick = function () { loadTransactions(); };
+    view.querySelector("#tx-more").onclick = function () {
+      loadTransactions(view.querySelector("#tx-more").dataset.before);
+    };
     view.querySelector("#topup-btn").onclick = function () { startTopUp(view); };
 
     loadBalance();
@@ -265,16 +269,22 @@
     });
   }
 
-  function loadTransactions() {
+  function loadTransactions(beforeId) {
     var list = document.getElementById("tx-list");
+    var moreBtn = document.getElementById("tx-more");
     if (!list) return;
-    return api("/api/v1/wallet/transactions?limit=20").then(function (d) {
+    if (!beforeId) list.innerHTML = '<div class="empty">جارِ التحميل…</div>';
+    moreBtn.hidden = true;
+    var url = "/api/v1/wallet/transactions?limit=20" + (beforeId ? "&beforeId=" + encodeURIComponent(beforeId) : "");
+    return api(url).then(function (d) {
       var entries = (d && d.entries) || [];
-      if (!entries.length) {
+      if (!beforeId && !entries.length) {
         list.innerHTML = '<div class="empty">لا حركات بعد — اشحن رصيدك الأول</div>';
         return;
       }
-      list.innerHTML = "";
+      if (!beforeId) list.innerHTML = "";
+      var loading = list.querySelector(".empty");
+      if (loading) loading.remove();
       entries.forEach(function (tx) {
         var credit = tx.direction === "CREDIT";
         var arrow = credit
@@ -293,8 +303,12 @@
           "</li>"
         ));
       });
+      if (d && d.nextBeforeId) {
+        moreBtn.dataset.before = d.nextBeforeId;
+        moreBtn.hidden = false;
+      }
     }).catch(function () {
-      list.innerHTML = '<div class="empty">تعذر تحميل الحركات</div>';
+      if (!beforeId) list.innerHTML = '<div class="empty">تعذر تحميل الحركات</div>';
     });
   }
 
