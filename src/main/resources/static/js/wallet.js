@@ -109,8 +109,8 @@
     var shell = el(
       '<div class="auth-shell">' +
         '<div class="auth-hero">' +
-          "<h1>فلوسك، <span class=\"grad-text\">بمعمارية نظيفة</span></h1>" +
-          '<p class="auth-sub">محفظة إلكترونية من الشحن للقيد المحاسبي — Spring Boot وPaymob.</p>' +
+          "<h1>فلوسك، <span class=\"grad-text\">تحت إيدك</span></h1>" +
+          '<p class="auth-sub">محفظة إلكترونية بسيطة: تشحن رصيدك بالبطاقة وتشوف كل حركة حصلت في حسابك.</p>' +
         "</div>" +
         '<section class="card auth-card">' +
           '<div class="auth-tabs">' +
@@ -129,10 +129,10 @@
           "</form>" +
         "</section>" +
         '<ul class="auth-features">' +
-          "<li>شحن عبر بوابة Paymob</li>" +
-          "<li>دفتر قيود مزدوج</li>" +
-          "<li>Webhooks موقّعة بـ HMAC</li>" +
-          "<li>جلسات بتدوير Refresh Token</li>" +
+          "<li>شحن بالبطاقة عبر Paymob</li>" +
+          "<li>كل حركة متسجلة</li>" +
+          "<li>الرصيد بيتحدث بعد الدفع لوحده</li>" +
+          "<li>تفضل مسجل دخولك</li>" +
         "</ul>" +
       "</div>"
     );
