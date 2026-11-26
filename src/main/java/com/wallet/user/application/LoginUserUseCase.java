@@ -12,8 +12,12 @@ import java.time.Instant;
 
 public class LoginUserUseCase {
 
-    /** Pre-computed BCrypt hash of a random password, used only to burn equal time. */
-    private static final String DUMMY_HASH = "$2a$10$lOMivm.j9amtjXzt3fO9VeKXHrJesDxS.FopOPRiI8aGvyP.wK4.u";
+    /**
+     * Pre-computed BCrypt hash of a random password, used only to burn equal time.
+     * Verified against Spring's BCrypt pattern (60 chars, valid salt+digest), so
+     * matches() runs the full rounds instead of fast-failing - see LoginDummyHashTest.
+     */
+    static final String DUMMY_HASH = "$2a$10$lOMivm.j9amtjXzt3fO9VeKXHrJesDxS.FopOPRiI8aGvyP.wK4.u";
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
